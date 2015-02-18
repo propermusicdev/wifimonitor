@@ -17,6 +17,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.proper.data.BinResponse;
+import com.proper.data.LastQuery;
 import com.proper.data.UserLoginResponse;
 import com.proper.data.diagnostics.LogEntry;
 import com.proper.data.helpers.ResponseHelper;
@@ -40,6 +41,7 @@ public class ActMain extends Activity {
     protected java.util.Date utilDate = java.util.Calendar.getInstance().getTime();
     protected java.sql.Timestamp today = null;
     protected DeviceUtils device = null;
+    protected LogResolver logResolver = null;
     protected HttpMessageResolver resolver = null;
     protected ResponseHelper responseHelper = null;
     protected com.proper.messagequeue.Message thisMessage = null;
@@ -50,6 +52,7 @@ public class ActMain extends Activity {
     private UserLoginResponse currentUser = null;
     private LogBinQueryTask binQryTask;
     private UserLoginTask loginTask;
+    private PushLogfileTask pushLogfileTask;
     private BinResponse qryResponse = null;
     private boolean isBarcodeOpened = false;
     private boolean threadStop = true;
@@ -88,6 +91,7 @@ public class ActMain extends Activity {
         deviceID = device.getDeviceID();
         deviceIMEI = device.getIMEI();
         //currentUser = authenticator.getCurrentUser();
+        logResolver = new LogResolver(this);
         resolver = new HttpMessageResolver(appContext);
         responseHelper = new ResponseHelper();
         //logOn();
@@ -178,11 +182,14 @@ public class ActMain extends Activity {
             }
             btnScan.setEnabled(true);
         }
-
+        if (v == btnLog) {
+            Intent i = new Intent(this, ActLogView.class);
+            startActivityForResult(i, 0);
+        }
         if (v == btnExit) {
-            Intent i = new Intent();
-            setResult(RESULT_OK, i);
-            finish();
+            if (pushLogfileTask != null) pushLogfileTask.cancel(true);
+            pushLogfileTask = new PushLogfileTask();
+            pushLogfileTask.execute();
         }
     }
 
@@ -480,10 +487,52 @@ public class ActMain extends Activity {
             super.onPostExecute(binResponse);
             if(mDialog != null && mDialog.isShowing()) mDialog.dismiss();
             //TODO - Log something here, DB response
+            txtBin.setText("");
             endtime = System.currentTimeMillis();
+            LastQuery qry = new LastQuery(currentBin, getDuration(startTime, endtime));
             Intent i = new Intent(ActMain.this, WifiReportingService.class);
-            i.putExtra("QUERYDURATION_EXTRA", getDuration(endtime, startTime));
+            i.putExtra("QUERYDURATION_EXTRA", qry);
             startService(i);
+        }
+    }
+
+    private class PushLogfileTask extends AsyncTask<Void, Void, Boolean> {
+        private ProgressDialog yDialog;
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+            yDialog = new ProgressDialog(ActMain.this);
+            CharSequence message = "Working hard...checking credentials...";
+            CharSequence title = "Please Wait";
+            yDialog.setCancelable(true);
+            yDialog.setCanceledOnTouchOutside(false);
+            yDialog.setMessage(message);
+            yDialog.setTitle(title);
+            yDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+            yDialog.show();
+        }
+
+        @Override
+        protected Boolean doInBackground(Void... params) {
+            return logResolver.saveLogToServer(ActMain.this);
+        }
+
+        @Override
+        protected void onPostExecute(Boolean result) {
+            super.onPostExecute(result);
+            if (result) {
+                new AlertDialog.Builder(ActMain.this).setTitle("LOG").setMessage("Log Saved Successfully !!").setPositiveButton("Finish", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        // TODO Auto-generated method stub
+                        stopService(new Intent(appContext, WifiReportingService.class));
+                        Intent i = new Intent();
+                        setResult(RESULT_OK, i);
+                        finish();
+                    }
+                }).show();
+            }
         }
     }
 }

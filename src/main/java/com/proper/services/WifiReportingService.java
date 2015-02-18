@@ -9,14 +9,12 @@ import android.content.res.Resources;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.wifi.ScanResult;
-import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Message;
-//import android.support.annotation.Nullable;
 import android.util.Log;
 import android.view.Gravity;
 import android.widget.Toast;
@@ -111,7 +109,7 @@ public class WifiReportingService extends Service {
             configurator.setRunning(true);
         }
         Log.d(TAG, "onStartCommand");
-        lastQuery = (LastQuery) intent.getSerializableExtra("LASTQUERY_EXTRA");
+        lastQuery = (LastQuery) intent.getSerializableExtra("QUERYDURATION_EXTRA");
         ScheduledThreadPoolExecutor exec = new ScheduledThreadPoolExecutor(1);
         long delay = 3; //the delay between the termination of one execution and the commencement of the next
         exec.scheduleWithFixedDelay(new doWorkInBackground(), 0, delay, TimeUnit.SECONDS);
@@ -131,23 +129,23 @@ public class WifiReportingService extends Service {
         Log.d(TAG, "onDestroy");
     }
 
-    private void doInBackground(Intent intent) {
-        handler.postDelayed(new Runnable() {
-
-            @Override
-            public void run()
-            {
-                wifiReceiver = new WifiLevelReceiver();
-                registerReceiver(wifiReceiver, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
-                if (!mainWifi.isWifiEnabled()) {
-                    mainWifi.setWifiEnabled(true);
-                }
-                mainWifi.startScan();
-                //doInBackground();  //loop again?
-            }
-        }, interval);
-
-    }
+//    private void doInBackground(Intent intent) {
+//        handler.postDelayed(new Runnable() {
+//
+//            @Override
+//            public void run()
+//            {
+//                wifiReceiver = new WifiLevelReceiver();
+//                registerReceiver(wifiReceiver, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
+//                if (!mainWifi.isWifiEnabled()) {
+//                    mainWifi.setWifiEnabled(true);
+//                }
+//                mainWifi.startScan();
+//                //doInBackground();  //loop again?
+//            }
+//        }, interval);
+//
+//    }
 
     public class MyPropertyChangeListener implements PropertyChangeListener {
         private Thread updater = null;
@@ -165,8 +163,16 @@ public class WifiReportingService extends Service {
 
                 if (event.getOldValue() != null) {
                     if (!oldWifi.BSSID.equalsIgnoreCase(newWifi.BSSID)) {
-                        configurator.setLogEntry(new WifiLogEntry(getEndPointLocation(getApplicationContext(), newWifi.BSSID),newWifi.BSSID,
-                                oldWifi.BSSID, newWifi.level, getWifiChannel(newWifi.frequency), "", 300, 1000*15, new Date().getTime()));
+                        if (lastQuery != null) {
+                            configurator.setLogEntry(new WifiLogEntry(getEndPointLocation(getApplicationContext(), newWifi.BSSID),newWifi.BSSID,
+                                    getEndPointLocation(getApplicationContext(), oldWifi.BSSID), newWifi.level, getWifiChannel(newWifi.frequency),
+                                    lastQuery.getBin(), 300, lastQuery.getDuration().longValue(), new Date().getTime()));
+                        }else{
+//                            configurator.setLogEntry(new WifiLogEntry(getEndPointLocation(getApplicationContext(), newWifi.BSSID),newWifi.BSSID,
+//                                    getEndPointLocation(getApplicationContext(), oldWifi.BSSID), newWifi.level, getWifiChannel(newWifi.frequency),
+//                                    "", 300, 1000*15, new Date().getTime()));
+                            configurator.setLogEntry(null);
+                        }
                         Toast.makeText(WifiReportingService.this, String.format("Switching to a stronger WIFI\nNow Connected to: %s\nOn channel: %s",
                                 getEndPointLocation(WifiReportingService.this, newWifi.BSSID), getWifiChannel(newWifi.frequency)), Toast.LENGTH_SHORT).show();
                         //UpdateNotifier updater = new UpdateNotifier(event); updater.run();
@@ -175,6 +181,8 @@ public class WifiReportingService extends Service {
                         updater.setName("WiFiLoggerUpdater");
                         updater.start();
                     }
+                    //TODO - Alternative
+
                 } else {
                     configurator.setLogEntry(null);
                     ScanResult wifiValue = (ScanResult) event.getNewValue();
@@ -256,8 +264,7 @@ public class WifiReportingService extends Service {
                         }
                     }else{
                         if (oldWifi != null) {
-                            entry = configurator.getLogEntry() != null? configurator.getLogEntry() :
-                                    new WifiLogEntry(getEndPointLocation(WifiReportingService.this, newWifi.BSSID), newWifi.BSSID,
+                            entry = configurator.getLogEntry() != null? configurator.getLogEntry() : new WifiLogEntry(getEndPointLocation(WifiReportingService.this, newWifi.BSSID), newWifi.BSSID,
                                             getEndPointLocation(WifiReportingService.this, oldWifi.BSSID), newWifi.level, 12, "N0B1N", -100, 100*60, new Date().getTime());
                         }else {
                             entry = configurator.getLogEntry() != null? configurator.getLogEntry() : new WifiLogEntry("Testing", "Test BSSID",
@@ -274,10 +281,11 @@ public class WifiReportingService extends Service {
 //                }
 
                 //resolver.LogWifiReceiver(getApplicationContext(), entry);
-                resolver.LogWifiReceiverByFTP(getApplicationContext(), entry);
+                //resolver.LogWifiReceiverByFTP(getApplicationContext(), entry);
+                boolean saved = resolver.LogWifiReceiverLocally(getApplicationContext(), entry);
                 updateResult = new AbstractMap.SimpleEntry<Boolean, PropertyChangeEvent>(success, event);
                 msg.obj = updateResult;
-                msg.what = 1;
+                msg.what = saved? 1 : 0;
                 updaterToastHandler.sendMessage(msg);
 //                Toast.makeText(WifiReportingService.this, String.format("[[--> Success <--]]\nSwitching to a stronger WIFI\nConnecting to: %s\nOn channel: %s",
 //                        getEndPointLocation(WifiReportingService.this, newWifi.BSSID), getWifiChannel(newWifi.frequency)), Toast.LENGTH_LONG).show();
@@ -292,60 +300,60 @@ public class WifiReportingService extends Service {
         }
     }
 
-    private boolean connectToAStrongerWIfi(ScanResult result) {
-        // TODO - Handle Wifi Connectivity
-        boolean success = false;
-        if (!mainWifi.isWifiEnabled()) {
-            mainWifi.setWifiEnabled(true);
-        }
-        String pwd = "\"God0fC0mm5\"";
-        String ssid = "\"Mercury\"";
-        if (removeAllSavedNetworks()) {
-            // setup a wifi configuration to our chosen network
-            WifiConfiguration wc = new WifiConfiguration();
-            //wc.SSID = getResources().getString(R.string.ssid);
-            //wc.preSharedKey = getResources().getString(R.string.password);
-            wc.SSID = ssid;
-            wc.BSSID = result.BSSID;
-            wc.preSharedKey = pwd;
-            wc.status = WifiConfiguration.Status.ENABLED;
-            wc.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.TKIP);
-            wc.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.CCMP);
-            wc.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
-            wc.allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.TKIP);
-            wc.allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.CCMP);
-            wc.allowedProtocols.set(WifiConfiguration.Protocol.RSN);
-            // connect to and enable the connection
-//            int netId = mainWifi.addNetwork(wc);
-//            mainWifi.disconnect();   //disconnect ->>
-//            mainWifi.enableNetwork(netId, true);
-            //success = mainWifi.reconnect();
-            success = true;
-        }
-        return success;
-    }
-
-    private boolean removeAllSavedNetworks() {
-        boolean success = false;
-        if (!mainWifi.isWifiEnabled()) {
-            Log.d(TAG, "Enabled wifi before remove configured networks");
-            mainWifi.setWifiEnabled(true);
-        }
-        List<WifiConfiguration> wifiConfigList = mainWifi.getConfiguredNetworks();
-        if (wifiConfigList == null) {
-            Log.d(TAG, "no configuration list is null");
-            return true;
-        }
-        Log.d(TAG, "size of wifiConfigList: " + wifiConfigList.size());
-        for (WifiConfiguration wifiConfig: wifiConfigList) {
-            Log.d(TAG, "remove wifi configuration: " + wifiConfig.networkId);
-            int netId = wifiConfig.networkId;
-            mainWifi.removeNetwork(netId);
-            mainWifi.saveConfiguration();
-            success = true;
-        }
-        return success;
-    }
+//    private boolean connectToAStrongerWIfi(ScanResult result) {
+//        // TODO - Handle Wifi Connectivity
+//        boolean success = false;
+//        if (!mainWifi.isWifiEnabled()) {
+//            mainWifi.setWifiEnabled(true);
+//        }
+//        String pwd = "\"God0fC0mm5\"";
+//        String ssid = "\"Mercury\"";
+//        if (removeAllSavedNetworks()) {
+//            // setup a wifi configuration to our chosen network
+//            WifiConfiguration wc = new WifiConfiguration();
+//            //wc.SSID = getResources().getString(R.string.ssid);
+//            //wc.preSharedKey = getResources().getString(R.string.password);
+//            wc.SSID = ssid;
+//            wc.BSSID = result.BSSID;
+//            wc.preSharedKey = pwd;
+//            wc.status = WifiConfiguration.Status.ENABLED;
+//            wc.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.TKIP);
+//            wc.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.CCMP);
+//            wc.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
+//            wc.allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.TKIP);
+//            wc.allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.CCMP);
+//            wc.allowedProtocols.set(WifiConfiguration.Protocol.RSN);
+//            // connect to and enable the connection
+////            int netId = mainWifi.addNetwork(wc);
+////            mainWifi.disconnect();   //disconnect ->>
+////            mainWifi.enableNetwork(netId, true);
+//            //success = mainWifi.reconnect();
+//            success = true;
+//        }
+//        return success;
+//    }
+//
+//    private boolean removeAllSavedNetworks() {
+//        boolean success = false;
+//        if (!mainWifi.isWifiEnabled()) {
+//            Log.d(TAG, "Enabled wifi before remove configured networks");
+//            mainWifi.setWifiEnabled(true);
+//        }
+//        List<WifiConfiguration> wifiConfigList = mainWifi.getConfiguredNetworks();
+//        if (wifiConfigList == null) {
+//            Log.d(TAG, "no configuration list is null");
+//            return true;
+//        }
+//        Log.d(TAG, "size of wifiConfigList: " + wifiConfigList.size());
+//        for (WifiConfiguration wifiConfig: wifiConfigList) {
+//            Log.d(TAG, "remove wifi configuration: " + wifiConfig.networkId);
+//            int netId = wifiConfig.networkId;
+//            mainWifi.removeNetwork(netId);
+//            mainWifi.saveConfiguration();
+//            success = true;
+//        }
+//        return success;
+//    }
 
     //Get Channel that the WiFi Endpoint is broadcasting at
     private static int getWifiChannel(int frequency) {
@@ -418,15 +426,15 @@ public class WifiReportingService extends Service {
     }
 
     public class WifiLevelReceiver extends BroadcastReceiver {
-
+        protected WifiManager wifi = null;
         @Override
         public void onReceive(Context context, Intent intent) {
-
+            wifi = (WifiManager) getSystemService(Context.WIFI_SERVICE);
             final ConnectivityManager connManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
             final NetworkInfo networkInfo = connManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
             final Resources res = context.getResources();
             final ArrayList<ScanResult> connections = new ArrayList<ScanResult>();
-            final List<ScanResult> wifiResults = mainWifi.getScanResults();
+            final List<ScanResult> wifiResults = wifi.getScanResults();
             final WifiSignalLevelSorter sorter = new WifiSignalLevelSorter();
             final NetUtils utils = new NetUtils();
             WifiInfo info = null;
@@ -451,14 +459,15 @@ public class WifiReportingService extends Service {
             //Collections.sort(wifiResults, sorter);
 
             //Get current wifi info
-            if (networkInfo.isConnected()) info = mainWifi.getConnectionInfo();
+            if (networkInfo.isConnected()) info = wifi.getConnectionInfo();
             if (info  == null) {
                 utils.connectToDefaultWifi(WifiReportingService.this);
             }
 
             //If for some reason we're still not connected then simply connect
             if (info != null && !info.getBSSID().isEmpty()) {
-                boolean isConnected = utils.connectToDefaultWifi(WifiReportingService.this);
+                //boolean isConnected = utils.connectToDefaultWifi(WifiReportingService.this);
+                boolean isConnected = true;
                 if (isConnected) {
                     //TODO - **************************    Report !!!     **********************************
                     for (int x = connections.size() -1; x >= 0; x--) {

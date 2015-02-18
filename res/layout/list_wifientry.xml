@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:orientation="vertical"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content" android:background="#6bc502">
+
+    <LinearLayout
+            android:orientation="vertical"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="3dp"
+            android:background="#222222">
+
+        <LinearLayout
+                android:orientation="vertical"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content">
+            <LinearLayout
+                    android:orientation="horizontal"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content">
+                <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Name: "
+                        android:id="@+id/lblLAPName"/>
+                <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="#bfc913"
+                        android:text="Amazon Dispatch"
+                        android:id="@+id/txtvLAPName"/>
+            </LinearLayout>
+            <LinearLayout
+                    android:orientation="horizontal"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content">
+                <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="BSSID:  "
+                        android:id="@+id/lblLBSSID"/>
+                <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textAppearance="?android:attr/textAppearanceSmall"
+                        android:text="20:4e:7f:87:8f:a8"
+                        android:id="@+id/txtvLBSSID"/>
+            </LinearLayout>
+            <LinearLayout
+                    android:orientation="horizontal"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content">
+                <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Old AP: "
+                        android:id="@+id/lblLOldAPName"/>
+                <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="THE2S"
+                        android:textColor="#8bf90b"
+                        android:id="@+id/txtvLOldAPName"/>
+            </LinearLayout>
+            <LinearLayout
+                    android:orientation="horizontal"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content">
+                <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Strength:  "
+                        android:id="@+id/lblLSignalLevel"/>
+                <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textAppearance="?android:attr/textAppearanceSmall"
+                        android:text="-20"
+                        android:id="@+id/txtvLSignalLevel"/>
+                <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text=",  Channel:  "
+                        android:id="@+id/lblLChannel"/>
+                <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textAppearance="?android:attr/textAppearanceSmall"
+                        android:text="99"
+                        android:textColor="#f95f0b"
+                        android:id="@+id/txtvLChannel"/>
+            </LinearLayout>
+            <LinearLayout
+                    android:orientation="horizontal"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content">
+                <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Bin: "
+                        android:id="@+id/lblLBinScanned"/>
+                <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="2KBL2"
+                        android:id="@+id/txtvLBinScanned"/>
+                <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text=",  Resp:  "
+                        android:id="@+id/lblLDbResponseTime"/>
+                <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textAppearance="?android:attr/textAppearanceSmall"
+                        android:text="20ms"
+                        android:textColor="#f95f0b"
+                        android:id="@+id/txtvLDbResponseTime"/>
+            </LinearLayout>
+            <LinearLayout
+                    android:orientation="horizontal"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content">
+                <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Date:  "
+                        android:id="@+id/lblLEntryTimeStamp"/>
+                <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textAppearance="?android:attr/textAppearanceSmall"
+                        android:text="20/12/2015 15:25:30"
+                        android:id="@+id/txtvLEntryTimeStamp"/>
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

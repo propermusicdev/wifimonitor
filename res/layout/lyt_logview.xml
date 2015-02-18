@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:orientation="vertical"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent">
+
+    <TextView
+            android:layout_width="fill_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:background="@drawable/flat_button_blue"
+            android:textAppearance="?android:attr/textAppearanceLarge"
+            android:textStyle="bold"
+            android:text="Logs"
+            android:id="@+id/txtvTitle" android:gravity="center"/>
+    <ListView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="8"
+            android:id="@+id/lvLogList" android:layout_gravity="center_horizontal"/>
+    <Button
+            android:layout_width="fill_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:text="Exit"
+            android:background="@drawable/button_red"
+            android:layout_gravity="center"
+            style="@style/ButtonText"
+            android:drawableLeft="@drawable/appbarpower"
+            android:id="@+id/btnExitActLogView"/>
+</LinearLayout>

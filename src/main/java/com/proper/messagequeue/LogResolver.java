@@ -3,6 +3,7 @@ package com.proper.messagequeue;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.util.Log;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -15,8 +16,11 @@ import jcifs.smb.SmbFileOutputStream;
 import org.apache.commons.net.ftp.FTP;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -145,5 +149,94 @@ public class LogResolver {
 //            builder.show();
         }
         return success;
+    }
+
+    public Boolean LogWifiReceiverLocally(Context context, WifiLogEntry entry) {
+        boolean result = false;
+        String logString = "";
+        SharedPreferences prefs = context.getSharedPreferences("WIFILOGS", Context.MODE_PRIVATE);
+        //getSharedPreferences("WIFILOGS", MODE_PRIVATE);
+        ObjectMapper mapper = new ObjectMapper();
+        if (prefs.contains("LOG")){
+            logString = prefs.getString("LOG", "");
+        }
+        if (logString.isEmpty()) {
+            //do create a new list and save
+            List<WifiLogEntry> entries = new ArrayList<WifiLogEntry>();
+            try {
+                entries.add(entry);
+                String newValue = mapper.writeValueAsString(entries);
+                SharedPreferences.Editor editor = context.getSharedPreferences("WIFILOGS", Context.MODE_PRIVATE).edit();
+                editor.putString("LOG", newValue);
+                editor.commit();
+                result = true;
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+        }else {
+            //do, load list and add then save
+            List<WifiLogEntry> entries = new ArrayList<WifiLogEntry>();
+            try {
+                entries = mapper.readValue(logString,new TypeReference<List<WifiLogEntry>>(){});
+                entries.add(entry);
+                String newValue = mapper.writeValueAsString(entries);
+                SharedPreferences.Editor editor = context.getSharedPreferences("WIFILOGS", Context.MODE_PRIVATE).edit();
+                editor.putString("LOG", newValue);
+                editor.apply();
+                result = true;
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        return result;
+    }
+
+    public Boolean saveLogToServer(Context context) {
+        boolean success =  false;
+        try{
+            String logString = "";
+            SharedPreferences prefs = context.getSharedPreferences("WIFILOGS", Context.MODE_PRIVATE);
+            if (prefs.contains("LOG")) {
+                logString = prefs.getString("LOG", "");
+            }
+            if (!logString.isEmpty()) {
+                Resources res = context.getResources();
+                org.apache.commons.net.ftp.FTPClient ftp = new org.apache.commons.net.ftp.FTPClient();
+                String host = res.getString(R.string.FTP_HOST_EXTERNAL);
+                String user = res.getString(R.string.FTP_DEFAULTUSER);
+                String pass = res.getString(R.string.FTP_PASSWORD);
+                ftp.connect(host);
+                ftp.login(user, pass);
+                ftp.setFileType(FTP.BINARY_FILE_TYPE);
+                ftp.setFileTransferMode(FTP.BINARY_FILE_TYPE); //new
+                ftp.setBufferSize(3774873); //3.6MB - ftp.setBufferSize(0)// new line improve speed
+                ftp.enterLocalPassiveMode();
+                //ftp.connect(host);
+                String logsDir = "/WarehouseWifiLog/";
+                SimpleDateFormat pattern = new SimpleDateFormat("ddMMyyyy_HHmmss");
+                String newFileName = String.format("log_%s.json", pattern.format(new Date()));
+                //change directory
+                ftp.changeWorkingDirectory(logsDir);
+                InputStream is = new ByteArrayInputStream(logString.getBytes());
+                success = ftp.storeFile(newFileName, is);
+                if (success) {
+                    removeLogSession();
+                }
+            }
+        }catch (Exception ex) {
+            ex.toString();
+        }
+        return success;
+    }
+
+    private boolean removeLogSession(){
+        boolean result = false;
+        SharedPreferences prefs = context.getSharedPreferences("WIFILOGS", Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = context.getSharedPreferences("WIFILOGS", Context.MODE_PRIVATE).edit();
+        if (prefs.contains("LOG")) {
+            editor.remove("LOG");
+            result = true;
+        }
+        return result;
     }
 }

@@ -19,6 +19,7 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <activity android:name=".ActLogView" android:label="LogView"/>
         <service android:name="com.proper.services.WifiReportingService" />
         <receiver android:name="com.proper.services.WifiReportingService$WifiLevelReceiver">
             <intent-filter>
