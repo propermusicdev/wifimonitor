@@ -12,7 +12,7 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
-import android.os.HandlerThread;
+//import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Message;
 import android.util.Log;
@@ -40,8 +40,8 @@ public class WifiReportingService extends Service {
     private static final String TAG = WifiReportingService.class.getSimpleName();
     private IBinder binder = null;
     private WifiLevelReceiver wifiReceiver;
-    private HandlerThread mWorkerHandlerThread;
-    private Handler handler;
+    //private HandlerThread mWorkerHandlerThread;
+    //private Handler handler;
     private Handler updaterToastHandler;
     private WifiManager mainWifi;
     private static final long interval = 5000; // 1 hour  -   120000000
@@ -123,10 +123,11 @@ public class WifiReportingService extends Service {
             configurator.setRunning(false);
         }
         unregisterReceiver(wifiReceiver);
-        mWorkerHandlerThread.quit();
-        mWorkerHandlerThread = null;
-        handler = null;
+//        mWorkerHandlerThread.quit();
+//        mWorkerHandlerThread = null;
+//        handler = null;
         Log.d(TAG, "onDestroy");
+        stopSelf();
     }
 
 //    private void doInBackground(Intent intent) {
@@ -174,7 +175,7 @@ public class WifiReportingService extends Service {
                             configurator.setLogEntry(null);
                         }
                         Toast.makeText(WifiReportingService.this, String.format("Switching to a stronger WIFI\nNow Connected to: %s\nOn channel: %s",
-                                getEndPointLocation(WifiReportingService.this, newWifi.BSSID), getWifiChannel(newWifi.frequency)), Toast.LENGTH_SHORT).show();
+                        getEndPointLocation(WifiReportingService.this, newWifi.BSSID), getWifiChannel(newWifi.frequency)), Toast.LENGTH_SHORT).show();
                         //UpdateNotifier updater = new UpdateNotifier(event); updater.run();
                         if(updater != null) updater.interrupt();
                         updater = new Thread(new UpdateNotifier(event));
@@ -287,75 +288,16 @@ public class WifiReportingService extends Service {
                 msg.obj = updateResult;
                 msg.what = saved? 1 : 0;
                 updaterToastHandler.sendMessage(msg);
-//                Toast.makeText(WifiReportingService.this, String.format("[[--> Success <--]]\nSwitching to a stronger WIFI\nConnecting to: %s\nOn channel: %s",
-//                        getEndPointLocation(WifiReportingService.this, newWifi.BSSID), getWifiChannel(newWifi.frequency)), Toast.LENGTH_LONG).show();
             } else {
                 updateResult = new AbstractMap.SimpleEntry<Boolean, PropertyChangeEvent>(success, event);
                 msg.obj = updateResult;
                 msg.what = 0;
                 updaterToastHandler.sendMessage(msg);
-//                Toast.makeText(WifiReportingService.this, String.format("[[--> Error <--]]\nUnable to connect to: %s\nOn channel: %s",
-//                        getEndPointLocation(WifiReportingService.this, newWifi.BSSID), getWifiChannel(newWifi.frequency)), Toast.LENGTH_LONG).show();
             }
         }
     }
 
-//    private boolean connectToAStrongerWIfi(ScanResult result) {
-//        // TODO - Handle Wifi Connectivity
-//        boolean success = false;
-//        if (!mainWifi.isWifiEnabled()) {
-//            mainWifi.setWifiEnabled(true);
-//        }
-//        String pwd = "\"God0fC0mm5\"";
-//        String ssid = "\"Mercury\"";
-//        if (removeAllSavedNetworks()) {
-//            // setup a wifi configuration to our chosen network
-//            WifiConfiguration wc = new WifiConfiguration();
-//            //wc.SSID = getResources().getString(R.string.ssid);
-//            //wc.preSharedKey = getResources().getString(R.string.password);
-//            wc.SSID = ssid;
-//            wc.BSSID = result.BSSID;
-//            wc.preSharedKey = pwd;
-//            wc.status = WifiConfiguration.Status.ENABLED;
-//            wc.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.TKIP);
-//            wc.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.CCMP);
-//            wc.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
-//            wc.allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.TKIP);
-//            wc.allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.CCMP);
-//            wc.allowedProtocols.set(WifiConfiguration.Protocol.RSN);
-//            // connect to and enable the connection
-////            int netId = mainWifi.addNetwork(wc);
-////            mainWifi.disconnect();   //disconnect ->>
-////            mainWifi.enableNetwork(netId, true);
-//            //success = mainWifi.reconnect();
-//            success = true;
-//        }
-//        return success;
-//    }
-//
-//    private boolean removeAllSavedNetworks() {
-//        boolean success = false;
-//        if (!mainWifi.isWifiEnabled()) {
-//            Log.d(TAG, "Enabled wifi before remove configured networks");
-//            mainWifi.setWifiEnabled(true);
-//        }
-//        List<WifiConfiguration> wifiConfigList = mainWifi.getConfiguredNetworks();
-//        if (wifiConfigList == null) {
-//            Log.d(TAG, "no configuration list is null");
-//            return true;
-//        }
-//        Log.d(TAG, "size of wifiConfigList: " + wifiConfigList.size());
-//        for (WifiConfiguration wifiConfig: wifiConfigList) {
-//            Log.d(TAG, "remove wifi configuration: " + wifiConfig.networkId);
-//            int netId = wifiConfig.networkId;
-//            mainWifi.removeNetwork(netId);
-//            mainWifi.saveConfiguration();
-//            success = true;
-//        }
-//        return success;
-//    }
-
-    //Get Channel that the WiFi Endpoint is broadcasting at
+    //Get specific Channel that the WiFi Endpoint is broadcasting at
     private static int getWifiChannel(int frequency) {
         final int[] channelsFrequency = {0,2412,2417,2422,2427,2432,2437,2442,2447,2452,2457,2462,2467,2472,2484};
         int channel = Arrays.binarySearch(channelsFrequency, frequency);
@@ -474,7 +416,7 @@ public class WifiReportingService extends Service {
                         if (info != null && !info.getBSSID().isEmpty()) {
                             //if the current info is in our list of accepted endpoints then continue
                             if (!(Arrays.binarySearch(acceptedParam, info.getBSSID()) == -1)) {
-                                //Make sure that it's not the the one we're currently connected to
+                                //Make sure that it's not the one we're currently connected to
                                 if (!info.getBSSID().equalsIgnoreCase(connections.get(x).BSSID)) {
                                     configurator.setEndpointElect(connections.get(x));
                                     //Compare the current signal level to our WiFi Elect level

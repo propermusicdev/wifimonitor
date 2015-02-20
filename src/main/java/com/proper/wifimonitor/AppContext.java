@@ -120,14 +120,14 @@ public class AppContext extends Application {
         //startService(intent);
         //FileUtils.createPath(AppConfig.DEFAULT_SAVE_PATH);
 
-        Intent intent = new Intent(this, WifiReportingService.class);
-        startService(intent);
+//        Intent intent = new Intent(this, WifiReportingService.class);
+//        startService(intent);
 //        Intent i = new Intent();
 //        i.setComponent(new ComponentName("com.proper.warehouseupdater", "com.proper.warehouseupdater.services.UpdaterService"));
 //        ComponentName c = this.startService(i);
     }
 
-    private boolean isMyServiceRunning(Class<?> serviceClass) {
+    public boolean isMyServiceRunning(Class<?> serviceClass) {
         ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
         for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
             if (serviceClass.getName().equals(service.service.getClassName())) {

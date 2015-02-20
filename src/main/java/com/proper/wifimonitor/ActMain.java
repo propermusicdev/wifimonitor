@@ -190,6 +190,9 @@ public class ActMain extends Activity {
             if (pushLogfileTask != null) pushLogfileTask.cancel(true);
             pushLogfileTask = new PushLogfileTask();
             pushLogfileTask.execute();
+            if (appContext.isMyServiceRunning(WifiReportingService.class)) {
+                this.stopService(new Intent(this, WifiReportingService.class));
+            }
         }
     }
 
@@ -397,25 +400,10 @@ public class ActMain extends Activity {
                             }
                         });
                 builder.show();
+            }else {
+                Intent intent = new Intent(ActMain.this, WifiReportingService.class);
+                startService(intent);
             }
-//            if (userLoginResponse == null && currentUserToken.contains("Failure")) {
-//                // Refresh Activity to default
-//                currentUserToken = "";
-//
-//                ActMain.this.setTitle(getResources().getString(R.string.currentUser));
-//                appContext.playSound(2);
-//                Vibrator vib = (Vibrator) ActMain.this.getSystemService(Context.VIBRATOR_SERVICE);
-//                vib.vibrate(2000);  // Vibrate for 500 milliseconds
-//                String mMsg = "Login Error\nYour Initials/Pin combination is incorrect. Please try again";
-//                AlertDialog.Builder builder = new AlertDialog.Builder(ActMain.this);
-//                builder.setMessage(mMsg)
-//                        .setPositiveButton(R.string.but_ok, new DialogInterface.OnClickListener() {
-//                            public void onClick(DialogInterface dialog, int id) {
-//                                //do nothing
-//                            }
-//                        });
-//                builder.show();
-//            }
         }
     }
 
