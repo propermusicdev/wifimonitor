@@ -9,6 +9,7 @@ import android.net.NetworkInfo;
 import android.util.Log;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.proper.data.ServerResponseObject;
 import com.proper.data.diagnostics.LogEntry;
 import com.proper.data.diagnostics.WifiLogEntry;
 //import com.proper.utils.StringUtils;
@@ -82,8 +83,9 @@ public class HttpMessageResolver {
     }
 
     //@Override
-    public String resolveMessageQuery(Message msg) {
-
+    public ServerResponseObject resolveMessageQuery(Message msg) {
+        ServerResponseObject response =  null;
+        long startTime = System.currentTimeMillis();
         try {
             URL url = new URL(getDefaultConfig());
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();

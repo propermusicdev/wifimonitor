@@ -8,18 +8,23 @@ import android.content.res.Resources;
 import android.util.Log;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.proper.data.ServerResponseObject;
+import com.proper.data.diagnostics.LogEntry;
 import com.proper.data.diagnostics.WifiLogEntry;
+import com.proper.wifimonitor.AppContext;
 import com.proper.wifimonitor.R;
 import jcifs.smb.NtlmPasswordAuthentication;
 import jcifs.smb.SmbFile;
 import jcifs.smb.SmbFileOutputStream;
 import org.apache.commons.net.ftp.FTP;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
@@ -27,9 +32,13 @@ import java.util.List;
  * Created by Lebel on 17/02/2015.
  */
 public class LogResolver {
-    private String TSAG = LogResolver.class.getSimpleName();
-    private String response;
+    private String TAG = LogResolver.class.getSimpleName();
+    private String deviceIMEI = "";
+    private static final String ApplicationID = "WarehouseTools";
+    private Date utilDate = Calendar.getInstance().getTime();
+    private java.sql.Timestamp today = null;
     private Context context = null;
+    private String response;
 
     public LogResolver(Context context) {
         this.context = context;
@@ -65,6 +74,70 @@ public class LogResolver {
         }
         return newConfig;
     }
+
+    public ServerResponseObject resolveMessageQuery(Message msg) {
+        long startTime = System.currentTimeMillis();
+        long endTime = 0L;
+        try {
+            URL url = new URL(getDefaultConfig());
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setUseCaches(false); // new line
+            conn.setDoInput(true); //new line
+            conn.setDoOutput(true);
+
+            ObjectMapper mapper = new ObjectMapper();
+            String input = mapper.writeValueAsString(msg);
+
+            OutputStream os = conn.getOutputStream();
+            OutputStreamWriter osw = new OutputStreamWriter(os);
+            osw.write(input);
+            osw.flush();
+            osw.close();
+
+            if (conn.getResponseCode() != HttpURLConnection.HTTP_OK) {
+                throw new RuntimeException("Failed : HTTP error code : "
+                        + conn.getResponseCode());
+            }
+            //Serialise the returned entity
+            //LogEntry newEntry = mapper.readValue(conn.getInputStream(), LogEntry.class);
+            //Or Get the string returned
+            BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+            StringBuilder sb = new StringBuilder();
+            String line = null;
+
+            // Read Server Response
+            while((line = reader.readLine()) != null)
+            {
+                // Append server response string
+                sb.append(line + "");
+            }
+
+            reader.close(); // new line added !
+            // Append Server Response To Content String but do nothing with it - for now...
+            setResponse(sb.toString().trim());
+            conn.disconnect();
+            endTime = System.currentTimeMillis();
+        } catch(MalformedURLException ex) {
+            ex.printStackTrace();
+            today = new java.sql.Timestamp(utilDate.getTime());
+            LogEntry log = new LogEntry(1L, ApplicationID, "HttpMessageResolver - resolveMessageQuery", deviceIMEI, ex.getClass().getSimpleName(), ex.getMessage(), today);
+            //logger.log(log);
+        } catch (IOException ex) {
+            ex.printStackTrace();
+            today = new java.sql.Timestamp(utilDate.getTime());
+            LogEntry log = new LogEntry(1L, ApplicationID, "HttpMessageResolver - resolveMessageQuery", deviceIMEI, ex.getClass().getSimpleName(), ex.getMessage(), today);
+            //logger.log(log);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            today = new java.sql.Timestamp(utilDate.getTime());
+            LogEntry log = new LogEntry(1L, ApplicationID, "HttpMessageResolver - resolveMessageQuery", deviceIMEI, ex.getClass().getSimpleName(), ex.getMessage(), today);
+            //logger.log(log);
+        }
+        return new ServerResponseObject(response, (endTime - startTime) / 1000.0);
+    }
+
 
     public Boolean LogWifiReceiver(Context context, WifiLogEntry entry) {
         boolean success = false;
@@ -139,14 +212,6 @@ public class LogResolver {
             if (ex.getMessage().contains("EOFException")) {
                 return false;
             }
-//            AlertDialog.Builder builder = new AlertDialog.Builder(context);
-//            builder.setMessage(msg)
-//                    .setPositiveButton(R.string.but_ok, new DialogInterface.OnClickListener() {
-//                        public void onClick(DialogInterface dialog, int id) {
-//                            //do nothing
-//                        }
-//                    });
-//            builder.show();
         }
         return success;
     }
@@ -177,7 +242,7 @@ public class LogResolver {
             //do, load list and add then save
             List<WifiLogEntry> entries = new ArrayList<WifiLogEntry>();
             try {
-                entries = mapper.readValue(logString,new TypeReference<List<WifiLogEntry>>(){});
+                entries = mapper.readValue(logString, new TypeReference<List<WifiLogEntry>>(){});
                 entries.add(entry);
                 String newValue = mapper.writeValueAsString(entries);
                 SharedPreferences.Editor editor = context.getSharedPreferences("WIFILOGS", Context.MODE_PRIVATE).edit();
@@ -213,7 +278,7 @@ public class LogResolver {
                 ftp.enterLocalPassiveMode();
                 //ftp.connect(host);
                 String logsDir = "/WarehouseWifiLog/";
-                SimpleDateFormat pattern = new SimpleDateFormat("ddMMyyyy_HHmmss");
+                SimpleDateFormat pattern = new SimpleDateFormat("yyyyMMdd_HHmmss");
                 String newFileName = String.format("log_%s.json", pattern.format(new Date()));
                 //change directory
                 ftp.changeWorkingDirectory(logsDir);

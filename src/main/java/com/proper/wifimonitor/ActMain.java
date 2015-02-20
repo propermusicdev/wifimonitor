@@ -18,6 +18,7 @@ import android.widget.EditText;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.proper.data.BinResponse;
 import com.proper.data.LastQuery;
+import com.proper.data.ServerResponseObject;
 import com.proper.data.UserLoginResponse;
 import com.proper.data.diagnostics.LogEntry;
 import com.proper.data.helpers.ResponseHelper;
@@ -28,6 +29,7 @@ import com.rscja.deviceapi.Barcode1D;
 import com.rscja.deviceapi.exception.ConfigurationException;
 
 import java.io.IOException;
+import java.util.AbstractMap;
 
 public class ActMain extends Activity {
     private String TAG = ActMain.class.getSimpleName();
@@ -42,7 +44,7 @@ public class ActMain extends Activity {
     protected java.sql.Timestamp today = null;
     protected DeviceUtils device = null;
     protected LogResolver logResolver = null;
-    protected HttpMessageResolver resolver = null;
+    //protected HttpMessageResolver resolver = null;
     protected ResponseHelper responseHelper = null;
     protected com.proper.messagequeue.Message thisMessage = null;
     private Handler handler;
@@ -92,7 +94,7 @@ public class ActMain extends Activity {
         deviceIMEI = device.getIMEI();
         //currentUser = authenticator.getCurrentUser();
         logResolver = new LogResolver(this);
-        resolver = new HttpMessageResolver(appContext);
+        //resolver = new HttpMessageResolver(appContext);
         responseHelper = new ResponseHelper();
         //logOn();
         btnScan = (Button) this.findViewById(R.id.bnScanBin);
@@ -369,7 +371,7 @@ public class ActMain extends Activity {
 
                 //currentUserToken = testResolver.resolveLogIn();       // test only
                 //currentUserToken = httpResolver.resolveMessageQueue(thisMessage);
-                currentUserToken = resolver.resolveMessageQuery(thisMessage);
+                currentUserToken = logResolver.resolveMessageQuery(thisMessage).getResponse();
                 currentUser = mapper.readValue(currentUserToken, UserLoginResponse.class);
             } catch (Exception e) {
                 if (lDialog != null && lDialog.isShowing()) lDialog.dismiss();
@@ -407,7 +409,7 @@ public class ActMain extends Activity {
         }
     }
 
-    private class LogBinQueryTask extends AsyncTask<String, Void, BinResponse> {
+    private class LogBinQueryTask extends AsyncTask<String, Void, AbstractMap.SimpleEntry<ServerResponseObject, BinResponse>> {
         private ProgressDialog mDialog;
 
         @Override
@@ -424,8 +426,10 @@ public class ActMain extends Activity {
         }
 
         @Override
-        protected BinResponse doInBackground(String... input) {
+        protected AbstractMap.SimpleEntry<ServerResponseObject, BinResponse> doInBackground(String... input) {
             qryResponse = new BinResponse();
+            ServerResponseObject sro =  null;
+            AbstractMap.SimpleEntry<ServerResponseObject, BinResponse> resp = null;
             String bincode = input[0];
             String msg = String.format("{\"UserId\":\"%s\", \"UserCode\":\"%s\",\"BinCode\":\"%s\"}",
                     currentUser.getUserId(), currentUser.getUserCode(), bincode);
@@ -442,18 +446,16 @@ public class ActMain extends Activity {
             thisMessage.setIncomingMessage(msg);
 
             try {
-                String response = resolver.resolveMessageQuery(thisMessage);
-                //response = responseHelper.refineOutgoingMessage(response);
-                response = responseHelper.refineResponse(response);
-                if (response.contains("not recognised")) {
+                sro = logResolver.resolveMessageQuery(thisMessage);
+                String response = responseHelper.refineResponse(sro.getResponse());
+                sro.setResponse(response);
+                if (sro.getResponse().contains("not recognised")) {
                     //manually error trap this error
                     String iMsg = "The Response object return null due to msg queue not recognising your improper request.";
                     LogEntry log = new LogEntry(1L, ApplicationID, "ActBinMain - WebServiceTask - Line:1291", deviceIMEI, RuntimeException.class.getSimpleName(), iMsg, today);
-                    //logger.log(log);
-                    //throw new RuntimeException("The bin you have scanned have not been recognised. Please check and scan again");
                 }else {
                     ObjectMapper mapper = new ObjectMapper();
-                    msgResponse = mapper.readValue(response, BinResponse.class);
+                    msgResponse = mapper.readValue(sro.getResponse(), BinResponse.class);
                     qryResponse = msgResponse;
                 }
             } catch (IOException ex) {
@@ -467,12 +469,12 @@ public class ActMain extends Activity {
                 LogEntry log = new LogEntry(1L, ApplicationID, "ActQueryScan - doInBackground", deviceIMEI, ex.getClass().getSimpleName(), ex.getMessage(), today);
                 //logger.log(log);
             }
-            return qryResponse;
+            return new AbstractMap.SimpleEntry<ServerResponseObject, BinResponse>(sro, qryResponse);
         }
 
         @Override
-        protected void onPostExecute(BinResponse binResponse) {
-            super.onPostExecute(binResponse);
+        protected void onPostExecute(AbstractMap.SimpleEntry<ServerResponseObject, BinResponse> response) {
+            super.onPostExecute(response);
             if(mDialog != null && mDialog.isShowing()) mDialog.dismiss();
             //TODO - Log something here, DB response
             txtBin.setText("");
